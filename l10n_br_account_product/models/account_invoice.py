@@ -885,6 +885,7 @@ class AccountInvoiceLine(models.Model):
         return result
 
     @api.multi
+    @api.depends('invoice_id.partner_id', 'invoice_id.company_id')
     def _get_tax_codes(self, product_id, fiscal_position, taxes):
 
         result = {}
@@ -900,7 +901,34 @@ class AccountInvoiceLine(models.Model):
 
         product = self.env['product.product'].browse(product_id)
         ctx.update({'fiscal_type': product.fiscal_type})
-        result['cfop_id'] = fiscal_position.cfop_id.id
+
+        if product.type == 'product' and\
+            product.fiscal_classification_id.sale_tax_definition_line:
+                if fiscal_position.fiscal_category_id.journal_type in (
+                'sale', 'sale_refund'):
+                    if self.invoice_id.partner_id.country_id == self.invoice_id.company_id.country_id:
+                        if self.invoice_id.partner_id.state_id == self.invoice_id.company_id.state_id:
+                            if product.fiscal_classification_id.sale_tax_definition_line[0].cfop_estado_id:
+                                result['cfop_id'] = product.fiscal_classification_id.sale_tax_definition_line[0].cfop_estado_id.id
+                            else:
+                                result['cfop_id'] = fiscal_position.cfop_id.id
+                        else:
+                            if product.fiscal_classification_id.sale_tax_definition_line[0].cfop_estado_id:
+                                result['cfop_id'] = product.fiscal_classification_id.sale_tax_definition_line[0].cfop_outros_id.id
+                            else:
+                                result['cfop_id'] = fiscal_position.cfop_id.id
+                    else:
+                        if product.fiscal_classification_id.sale_tax_definition_line[0].cfop_estado_id:
+                            result['cfop_id'] = product.fiscal_classification_id.sale_tax_definition_line[0].cfop_exterior_id.id
+                        else:
+                            result['cfop_id'] = fiscal_position.cfop_id.id
+                else:
+                    if product.fiscal_classification_id.sale_tax_definition_line[0].cfop_entrada_id:
+                        result['cfop_id'] = product.fiscal_classification_id.sale_tax_definition_line[0].cfop_entrada_id.id
+                    else:
+                        result['cfop_id'] = fiscal_position.cfop_id.id
+        else:
+            result['cfop_id'] = fiscal_position.cfop_id.id
 
         tax_codes = fiscal_position.with_context(
             ctx).map_tax_code(product_id, taxes)
@@ -933,6 +961,7 @@ class AccountInvoiceLine(models.Model):
             tax_ids = values.get('invoice_line_tax_id', [[6, 0, []]])[
                 0][2] or self.invoice_line_tax_id.ids
         partner_id = values.get('partner_id') or self.partner_id.id
+        company_id = values.get('company_id') or self.company_id.id
         product_id = values.get('product_id') or self.product_id.id
         quantity = values.get('quantity') or self.quantity
         fiscal_position = values.get(
@@ -954,6 +983,10 @@ class AccountInvoiceLine(models.Model):
         else:
             partner = self.env['res.partner'].browse(partner_id)
 
+        if self:
+            company = self.invoice_id.company_id
+        else:
+            company = self.env['res.company'].browse(company_id)
         taxes = self.env['account.tax'].browse(tax_ids)
         fiscal_position = self.env['account.fiscal.position'].browse(
             fiscal_position)
@@ -999,6 +1032,26 @@ class AccountInvoiceLine(models.Model):
 
         result.update(self._get_tax_codes(
             product_id, fiscal_position, taxes))
+
+        if product_id:
+            product = self.env['product.product'].browse(product_id)
+            if product.fiscal_type == 'product' and\
+                product.fiscal_classification_id.sale_tax_definition_line:
+                if fiscal_position.fiscal_category_id.journal_type in (
+                    'sale', 'sale_refund'):
+                    if partner.country_id == company.country_id:
+                        if partner.state_id == company.state_id:
+                            if product.fiscal_classification_id.sale_tax_definition_line[0].cfop_estado_id:
+                                result['cfop_id'] = product.fiscal_classification_id.sale_tax_definition_line[0].cfop_estado_id.id
+                        else:
+                            if product.fiscal_classification_id.sale_tax_definition_line[0].cfop_estado_id:
+                                result['cfop_id'] = product.fiscal_classification_id.sale_tax_definition_line[0].cfop_outros_id.id
+                    else:
+                        if product.fiscal_classification_id.sale_tax_definition_line[0].cfop_estado_id:
+                            result['cfop_id'] = product.fiscal_classification_id.sale_tax_definition_line[0].cfop_exterior_id.id
+                else:
+                    if product.fiscal_classification_id.sale_tax_definition_line[0].cfop_estado_id:
+                        result['cfop_id'] = product.fiscal_classification_id.sale_tax_definition_line[0].cfop_entrada_id.id
         return result
 
     @api.model
