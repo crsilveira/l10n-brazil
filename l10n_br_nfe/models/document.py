@@ -175,6 +175,7 @@ class NFe(spec_models.StackedModel):
 > <infnfe>
     > <ide>
         ≡ <NFref> l10n_br_fiscal.document.related
+        - <gPagAntecipado>
     - <emit> res.company
     - <avulsa>
     - <dest> res.partner
@@ -206,7 +207,8 @@ class NFe(spec_models.StackedModel):
     - <compra>
     - <cana>
     - <infRespTec> res.partner
-    - <infSolicNFF>"""
+    - <infSolicNFF>
+    - <agropecuario>"""
 
     ##########################
     # NF-e spec related fields
