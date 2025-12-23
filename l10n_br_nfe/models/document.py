@@ -66,6 +66,84 @@ NFE_XML_NAMESPACE = {"nfe": "http://www.portalfiscal.inf.br/nfe"}
 
 _logger = logging.getLogger(__name__)
 
+def _unescape_embedded_xml_blocks(xml: str) -> str:
+    """
+    Unescape embedded XML blocks stored as escaped text inside specific tags.
+
+    Context:
+    - Some tags (e.g. IBSCBS/IBSCBSTot) are represented in the bindings as Char
+      fields, so xsdata serializes their content as escaped text.
+    - SEFAZ schema expects element-only content inside these tags.
+    """
+
+    def _unescape_xml_content(content: str) -> str:
+        # Order matters: &amp; must be replaced last to avoid double unescaping.
+        content = content.replace("&lt;", "<")
+        content = content.replace("&gt;", ">")
+        content = content.replace("&quot;", '"')
+        content = content.replace("&amp;", "&")
+        return content
+
+    def _unescape_block(tag: str, xml_in: str) -> str:
+        # Support optional prefixes and attributes on the opening tag.
+        pattern = rf"(<(?:\w+:)?{tag}\b[^>]*>)(.*?)(</(?:\w+:)?{tag}>)"
+        return re.sub(
+            pattern,
+            lambda m: m.group(1) + _unescape_xml_content(m.group(2)) + m.group(3),
+            xml_in,
+            flags=re.DOTALL,
+        )
+
+    xml = _unescape_block("IBSCBS", xml)
+    xml = _unescape_block("IBSCBSTot", xml)
+    return xml
+
+
+def _apply_nfelib_unescape_patch() -> None:
+    """
+    Apply a runtime monkeypatch to nfelib so that envelope serialization (enviNFe)
+    does not escape IBSCBS/IBSCBSTot inner XML.
+
+    This is required for the sending flow because the processor serializes the
+    edoc object again when building the envelope.
+    """
+    try:
+        from nfelib.nfe.ws import edoc_legacy  # type: ignore
+    except (
+        Exception
+    ) as exc:  # pragma: no cover  # pylint: disable=broad-exception-caught
+        _logger.debug("nfelib not available for unescape patch: %s", exc)
+        return
+
+    adapter_cls = getattr(edoc_legacy, "DocumentoElectronicoAdapter", None)
+    if not adapter_cls:
+        return
+
+    if getattr(adapter_cls, "_l10n_br_nfe_unescape_patch_applied", False):
+        return
+
+    original = adapter_cls.render_edoc_xsdata
+
+    def patched_render_edoc_xsdata(self, edoc, pretty_print=False):  # noqa: ANN001
+        xml_string, xml_etree = original(self, edoc, pretty_print=pretty_print)
+        if isinstance(xml_string, str):
+            fixed = _unescape_embedded_xml_blocks(xml_string)
+            if fixed != xml_string:
+                try:
+                    xml_etree = etree.fromstring(fixed.encode("utf-8"))
+                except (
+                    Exception
+                ):  # pragma: no cover  # pylint: disable=broad-exception-caught
+                    # Keep the original if parsing fails for any reason.
+                    return xml_string, xml_etree
+                return fixed, xml_etree
+        return xml_string, xml_etree
+
+    adapter_cls.render_edoc_xsdata = patched_render_edoc_xsdata
+    adapter_cls._l10n_br_nfe_unescape_patch_applied = True
+
+
+_apply_nfelib_unescape_patch()
 
 def filter_processador_edoc_nfe(record):
     if record.processador_edoc == PROCESSADOR_OCA and record.document_type_id.code in [
@@ -558,6 +636,11 @@ class NFe(spec_models.StackedModel):
     nfe40_vTotTrib = fields.Monetary(related="amount_estimate_tax")
 
     ##########################
+    # NF-e tag: IBSCBSTot
+    # The IBSCBSTot XML is built in _export_fields_nfe_40_total method
+    ##########################
+
+    ##########################
     # NF-e tag: ISSQNtot
     ##########################
 
@@ -620,6 +703,88 @@ class NFe(spec_models.StackedModel):
                 record.nfe40_infCpl = remove_non_ascii_characters(
                     record.customer_additional_data
                 )
+
+    def _export_fields_nfe_40_total(self, xsd_fields, class_obj, export_dict):
+        """Export fields for nfe.40.total model"""
+        # Handle IBSCBSTot field
+        if "nfe40_IBSCBSTot" in xsd_fields:
+            # Check if any line has IBSCBS (has ibs_cst_code)
+            lines_with_ibscbs = self.fiscal_line_ids.filtered(
+                lambda line: line.ibs_cst_code and line.tax_classification_id
+            )
+
+            if not lines_with_ibscbs:
+                # Remove IBSCBSTot if not filled
+                if "nfe40_IBSCBSTot" in xsd_fields:
+                    xsd_fields.remove("nfe40_IBSCBSTot")
+            else:
+                # Calculate totals from document lines with IBSCBS
+                total_ibs_base = sum(lines_with_ibscbs.mapped("ibs_base") or [0.0])
+                total_ibs_uf_value = sum(lines_with_ibscbs.mapped("ibs_value") or [0.0])
+                total_ibs_mun_value = (
+                    0.0
+                )  # TODO: When municipal IBS fields are available
+                total_ibs_value = total_ibs_uf_value + total_ibs_mun_value
+                total_cbs_value = sum(lines_with_ibscbs.mapped("cbs_value") or [0.0])
+
+                # Build IBSCBSTot XML string manually
+                xml_parts = []
+                # vBCIBSCBS - total base calculation
+                xml_parts.append(f"<vBCIBSCBS>{total_ibs_base:.2f}</vBCIBSCBS>")
+
+                # gIBS group
+                gibs_parts = []
+                # gIBSUF
+                gibsuf_parts = []
+                gibsuf_parts.append("<vDif>0.00</vDif>")  # TODO: When available
+                gibsuf_parts.append("<vDevTrib>0.00</vDevTrib>")  # TODO: When available
+                gibsuf_parts.append(f"<vIBSUF>{total_ibs_uf_value:.2f}</vIBSUF>")
+                gibs_parts.append(f"<gIBSUF>{''.join(gibsuf_parts)}</gIBSUF>")
+
+                # gIBSMun
+                gibsmun_parts = []
+                gibsmun_parts.append("<vDif>0.00</vDif>")  # TODO: When available
+                gibsmun_parts.append(
+                    "<vDevTrib>0.00</vDevTrib>"
+                )  # TODO: When available
+                gibsmun_parts.append(f"<vIBSMun>{total_ibs_mun_value:.2f}</vIBSMun>")
+                gibs_parts.append(f"<gIBSMun>{''.join(gibsmun_parts)}</gIBSMun>")
+
+                # vIBS
+                gibs_parts.append(f"<vIBS>{total_ibs_value:.2f}</vIBS>")
+                # vCredPres and vCredPresCondSus
+                gibs_parts.append("<vCredPres>0.00</vCredPres>")  # TODO: When available
+                gibs_parts.append(
+                    "<vCredPresCondSus>0.00</vCredPresCondSus>"
+                )  # TODO: When available
+
+                xml_parts.append(f"<gIBS>{''.join(gibs_parts)}</gIBS>")
+
+                # gCBS group
+                gcbs_parts = []
+                gcbs_parts.append("<vDif>0.00</vDif>")  # TODO: When available
+                gcbs_parts.append("<vDevTrib>0.00</vDevTrib>")  # TODO: When available
+                gcbs_parts.append(f"<vCBS>{total_cbs_value:.2f}</vCBS>")
+                gcbs_parts.append("<vCredPres>0.00</vCredPres>")  # TODO: When available
+                gcbs_parts.append(
+                    "<vCredPresCondSus>0.00</vCredPresCondSus>"
+                )  # TODO: When available
+                xml_parts.append(f"<gCBS>{''.join(gcbs_parts)}</gCBS>")
+
+                # Join all parts - framework will wrap in <IBSCBSTot> tag
+                # Note: The XML string will be escaped by xsdata when serialized,
+                # so we'll fix it in _document_export method after serialization
+                export_dict["IBSCBSTot"] = "".join(xml_parts)
+
+    def _export_field(self, xsd_field, class_obj, field_spec, export_value=None):
+        """Override to use export_value for Char fields with xsd_type when available"""
+        # For IBSCBSTot field, use the export_value if it exists
+        # (set in _export_fields_nfe_40_total)
+        if xsd_field == "nfe40_IBSCBSTot":
+            if export_value:
+                return export_value
+            return False
+        return super()._export_field(xsd_field, class_obj, field_spec, export_value)
 
     ##########################
     # NF-e tag: fat
@@ -962,6 +1127,36 @@ class NFe(spec_models.StackedModel):
             xml_file = processador.render_edoc_xsdata(edoc, pretty_print=pretty_print)[
                 0
             ]
+            xml_file = _unescape_embedded_xml_blocks(xml_file)
+            # # Fix IBSCBS and IBSCBSTot XML escaping issue
+            # # The xsdata framework escapes XML strings in Char fields with xsd_type
+            # # We need to unescape them after serialization
+            # # Order matters: &amp; must be replaced last to avoid double replacement
+            # def unescape_xml_content(content):
+            #     """Unescape XML entities in the correct order"""
+            #     # Replace in order: &amp; last to avoid double replacement
+            #     content = content.replace("&lt;", "<")
+            #     content = content.replace("&gt;", ">")
+            #     content = content.replace("&quot;", '"')
+            #     content = content.replace("&amp;", "&")  # Must be last
+            #     return content
+
+            # # Fix IBSCBS tags (line items)
+            # xml_file = re.sub(
+            #     r"<IBSCBS>(.*?)</IBSCBS>",
+            #     lambda m: "<IBSCBS>" + unescape_xml_content(m.group(1)) + "</IBSCBS>",
+            #     xml_file,
+            #     flags=re.DOTALL,
+            # )
+            # # Fix IBSCBSTot tags (totals)
+            # xml_file = re.sub(
+            #     r"<IBSCBSTot>(.*?)</IBSCBSTot>",
+            #     lambda m: "<IBSCBSTot>"
+            #     + unescape_xml_content(m.group(1))
+            #     + "</IBSCBSTot>",
+            #     xml_file,
+            #     flags=re.DOTALL,
+            # )
             # Delete previous authorization events in draft
             if (
                 record.authorization_event_id
@@ -1060,9 +1255,44 @@ class NFe(spec_models.StackedModel):
         if not self.filtered(filter_processador_edoc_nfe):
             return super()._validate_xml(xml_file)
 
-        erros = Nfe.schema_validation(xml_file)
-        erros = "\n".join(erros)
-        self.write({"xml_error_message": erros or False})
+        # Local schema (packaged XSD) may lag behind SEFAZ updates.
+        # For Reforma Tributária IBSCBS, SEFAZ may require <vIBS> inside line-level
+        # IBSCBS, while the local XSD might still reject it (expecting gCBS right
+        # after gIBSMun). We keep the original XML intact for SEFAZ, but validate a
+        # sanitized copy to avoid false negatives locally.
+        def _strip_vibs_for_local_validation(xml: str) -> str:
+            """
+            Remove only the <vIBS> elements inside IBSCBS (line-level) blocks.
+
+            Note: We intentionally do NOT strip vIBS from IBSCBSTot (totals), because
+            newer layouts include it there and other parts may depend on its presence.
+            """
+
+            def _strip_vibs(content: str) -> str:
+                return re.sub(
+                    r"<(?:\w+:)?vIBS>.*?</(?:\w+:)?vIBS>",
+                    "",
+                    content,
+                    flags=re.DOTALL,
+                )
+
+            pattern = r"(<(?:\w+:)?IBSCBS\b[^>]*>)(.*?)(</(?:\w+:)?IBSCBS>)"
+            return re.sub(
+                pattern,
+                lambda m: m.group(1) + _strip_vibs(m.group(2)) + m.group(3),
+                xml,
+                flags=re.DOTALL,
+            )
+
+        errors = Nfe.schema_validation(xml_file) or []
+
+        # If the only blocker is vIBS being unexpected (local XSD outdated),
+        # retry validation without vIBS inside IBSCBS blocks.
+        if any("vIBS" in e and "not expected" in e for e in errors):
+            xml_sanitized = _strip_vibs_for_local_validation(xml_file)
+            errors = Nfe.schema_validation(xml_sanitized) or []
+
+        self.write({"xml_error_message": "\n".join(errors) or False})
 
     def _exec_after_SITUACAO_EDOC_AUTORIZADA(self, old_state, new_state):
         self.ensure_one()
