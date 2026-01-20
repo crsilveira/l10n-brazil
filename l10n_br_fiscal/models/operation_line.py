@@ -248,6 +248,12 @@ class OperationLine(models.Model):
         ):
             self._build_mapping_result(mapping_result, tax_definition)
 
+        # 2 From NCM
+        if not ncm and product:
+            ncm = product.ncm_id
+        if ncm.tax_classification_id:
+            mapping_result["tax_classification"] = ncm.tax_classification_id
+
         if mapping_result["tax_classification"]:
             mapping_result["taxes"][
                 mapping_result["tax_classification"].tax_cbs_id.tax_domain
@@ -256,10 +262,6 @@ class OperationLine(models.Model):
             mapping_result["taxes"][
                 mapping_result["tax_classification"].tax_ibs_id.tax_domain
             ] = mapping_result["tax_classification"].tax_ibs_id
-
-        # 2 From NCM
-        if not ncm and product:
-            ncm = product.ncm_id
 
         if company.tax_framework == TAX_FRAMEWORK_NORMAL:
             tax_ipi = ncm.tax_ipi_id

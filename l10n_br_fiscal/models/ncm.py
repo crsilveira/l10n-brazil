@@ -42,6 +42,11 @@ class Ncm(models.Model):
 
     tax_estimate_ids = fields.One2many(inverse_name="ncm_id")
 
+    tax_classification_id = fields.Many2one(
+        comodel_name="l10n_br_fiscal.tax.classification",
+        string="Tax Classification",
+    )
+
     tax_definition_ids = fields.Many2many(
         comodel_name="l10n_br_fiscal.tax.definition",
         relation="tax_definition_ncm_rel",
