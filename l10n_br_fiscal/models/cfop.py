@@ -167,6 +167,11 @@ class Cfop(models.Model):
         string="Tax Definition",
     )
 
+    tax_classification_id = fields.Many2one(
+        comodel_name="l10n_br_fiscal.tax.classification",
+        string="Tax Classification",
+    )
+
     def _compute_is_import(self):
         for cfop in self:
             if cfop.code:

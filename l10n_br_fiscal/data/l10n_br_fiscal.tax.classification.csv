@@ -1,4 +1,5 @@
 "id","code","name","description","rate_type","regular_taxation","presumed_credit","credit_reversal","tax_ibs_id:id","tax_cbs_id:id"
+"tax_classification_000000","000000","SEM Situações tributada pelo IBS e CBS.","SEM Situações tributadas pelo IBS e CBS.","2","False","False","False","False","False"
 "tax_classification_000001","000001","Situações tributadas integralmente pelo IBS e CBS.","Situações tributadas integralmente pelo IBS e CBS.","2","False","False","False","tax_ibs_0_1","tax_cbs_0_9"
 "tax_classification_000002","000002","Exploração de via","Exploração de via","2","False","False","False","tax_ibs_0_1","tax_cbs_0_9"
 "tax_classification_000003","000003","Regime automotivo - projetos incentivados (art. 311)","Regime automotivo - projetos incentivados (art. 311)","2","False","True","False","tax_ibs_0_1","tax_cbs_0_9"

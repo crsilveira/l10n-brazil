@@ -104,6 +104,9 @@
                             <field name="ind_comb" />
                         </group>
                     </group>
+                    <group name="tax_classification" string="Tax Classification">
+                        <field name="tax_classification_id" />
+                    </group>
                     <group name="tax_settings" string="Taxes Settings">
                         <field
                             name="tax_definition_ids"

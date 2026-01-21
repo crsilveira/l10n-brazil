@@ -254,14 +254,7 @@ class OperationLine(models.Model):
         if ncm.tax_classification_id:
             mapping_result["tax_classification"] = ncm.tax_classification_id
 
-        if mapping_result["tax_classification"]:
-            mapping_result["taxes"][
-                mapping_result["tax_classification"].tax_cbs_id.tax_domain
-            ] = mapping_result["tax_classification"].tax_cbs_id
 
-            mapping_result["taxes"][
-                mapping_result["tax_classification"].tax_ibs_id.tax_domain
-            ] = mapping_result["tax_classification"].tax_ibs_id
 
         if company.tax_framework == TAX_FRAMEWORK_NORMAL:
             tax_ipi = ncm.tax_ipi_id
@@ -305,6 +298,7 @@ class OperationLine(models.Model):
             self._build_mapping_result(mapping_result, tax_definition)
 
         # 5 From CFOP
+        # import pudb;pu.db
         for tax_definition in mapping_result[
             "cfop"
         ].tax_definition_ids.map_tax_definition(
@@ -319,6 +313,11 @@ class OperationLine(models.Model):
             service_type=service_type,
         ):
             self._build_mapping_result(mapping_result, tax_definition)
+
+        if mapping_result["cfop"].tax_classification_id:
+            mapping_result["tax_classification"] = mapping_result[
+                "cfop"
+            ].tax_classification_id
 
         # 6 From Partner Profile
         for (
@@ -343,6 +342,15 @@ class OperationLine(models.Model):
         else:
             mapping_result["taxes"].pop(TAX_DOMAIN_ICMS, None)
             mapping_result["taxes"].pop(TAX_DOMAIN_ISSQN, None)
+
+        if mapping_result["tax_classification"]:
+            mapping_result["taxes"][
+                mapping_result["tax_classification"].tax_cbs_id.tax_domain
+            ] = mapping_result["tax_classification"].tax_cbs_id
+
+            mapping_result["taxes"][
+                mapping_result["tax_classification"].tax_ibs_id.tax_domain
+            ] = mapping_result["tax_classification"].tax_ibs_id
 
         return mapping_result
 
