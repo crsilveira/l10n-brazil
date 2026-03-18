@@ -675,7 +675,6 @@ class NFe(spec_models.StackedModel):
             total_ibs_base = (
                 sum(record.fiscal_line_ids.mapped("ibs_base"))
                 or sum(record.fiscal_line_ids.mapped("cbs_base"))
-                or sum(record.fiscal_line_ids.mapped("price_gross"))
             )
 
             total_ibs_value = sum(record.fiscal_line_ids.mapped("ibs_value"))
