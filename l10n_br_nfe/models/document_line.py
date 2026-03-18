@@ -302,11 +302,17 @@ class NFeLine(spec_models.StackedModel):
             )
 
             # Build TtribNfe
-            ibscbs_obj = TtribNfe(
-                CST=cst,
-                cClassTrib=c_class_trib,
-                gIBSCBS=gibscbs,
-            )
+            if self.tax_classification_id.rate_type == "3":
+                ibscbs_obj = TtribNfe(
+                    CST=cst,
+                    cClassTrib=c_class_trib,
+                )
+            else:
+                ibscbs_obj = TtribNfe(
+                    CST=cst,
+                    cClassTrib=c_class_trib,
+                    gIBSCBS=gibscbs,
+                )
 
             return ibscbs_obj
 
