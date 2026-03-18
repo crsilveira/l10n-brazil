@@ -823,9 +823,20 @@ class NFe(spec_models.StackedModel):
         if xsd_field == "nfe40_IBSCBSTot":
             total_ibs = sum(self.fiscal_line_ids.mapped("ibs_value"))
             total_cbs = sum(self.fiscal_line_ids.mapped("cbs_value"))
-
-            # if not total_ibs and not total_cbs:
-                # return False
+            groupIbsCbs = True
+            if not total_ibs and not total_cbs:
+                for record in self:
+                    if not record.fiscal_line_ids:
+                        return False
+                    else:
+                        classtrib = False
+                        for line in record.fiscal_line_ids:
+                            if line.tax_classification_id:
+                                classtrib = True
+                                if line.tax_classification_id.rate_type == "3":
+                                    groupIbsCbs = False
+                        if not classtrib:
+                            return False
 
             # Build gIBSUF
             gibsuf = TibscbsmonoTot.GIbs.GIbsuf(
@@ -860,11 +871,16 @@ class NFe(spec_models.StackedModel):
             )
 
             # Build IBSCBSTot
-            ibscbs_tot = TibscbsmonoTot(
-                vBCIBSCBS=f"{self.nfe40_vBCIBSCBS:.2f}",
-                gIBS=gibs,
-                gCBS=gcbs,
-            )
+            if groupIbsCbs:
+                ibscbs_tot = TibscbsmonoTot(
+                    vBCIBSCBS=f"{self.nfe40_vBCIBSCBS:.2f}",
+                    gIBS=gibs,
+                    gCBS=gcbs,
+                )
+            else:
+                ibscbs_tot = TibscbsmonoTot(
+                    vBCIBSCBS=f"{0.0:.2f}",
+                )
 
             return ibscbs_tot
 
