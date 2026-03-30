@@ -226,7 +226,10 @@ class Tax(models.Model):
         )
 
         # Compute Tax Base Reduction
-        base_reduction = base_amount * abs(tax.percent_reduction / 100)
+        base_reduction = 0.00
+        if tax.tax_domain not in ["ibs", "cbs"]:
+            base_reduction = base_amount * abs(tax.percent_reduction / 100)
+        # base_reduction = base_amount * abs(tax.percent_reduction / 100)
 
         # Compute Tax Base Amount
         if compute_reduction:
@@ -290,9 +293,16 @@ class Tax(models.Model):
         base_amount = tax_dict.get("base", 0.00)
 
         if tax_dict["base_type"] == "percent":
-            tax_dict["tax_value"] = currency.round(
-                base_amount * (tax_dict["percent_amount"] / 100)
-            )
+            if tax.tax_domain not in ["ibs", "cbs"]:
+                tax_dict["tax_value"] = currency.round(
+                    base_amount * (tax_dict["percent_amount"] / 100)
+                )
+            else:
+                base_reduction = base_amount * abs(tax.percent_reduction / 100)
+                base_amount = base_amount - base_reduction
+                tax_dict["tax_value"] = currency.round(
+                    base_amount * (tax_dict["percent_amount"] / 100)
+                )
 
         if tax_dict["base_type"] in ("quantity", "fixed"):
             tax_dict["tax_value"] = currency.round(

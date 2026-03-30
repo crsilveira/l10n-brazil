@@ -673,7 +673,6 @@ class NFe(spec_models.StackedModel):
             total_ibs_base = (
                 sum(record.fiscal_line_ids.mapped("ibs_base"))
                 or sum(record.fiscal_line_ids.mapped("cbs_base"))
-                or sum(record.fiscal_line_ids.mapped("price_gross"))
             )
 
             total_ibs_value = sum(record.fiscal_line_ids.mapped("ibs_value"))
@@ -819,11 +818,25 @@ class NFe(spec_models.StackedModel):
             )
 
         if xsd_field == "nfe40_IBSCBSTot":
+            class_fiscal = self.fiscal_line_ids.mapped("tax_classification_id")
+            if not class_fiscal:
+                return super()._export_field(xsd_field, class_obj, member_spec, export_value)
             total_ibs = sum(self.fiscal_line_ids.mapped("ibs_value"))
             total_cbs = sum(self.fiscal_line_ids.mapped("cbs_value"))
-
+            groupIbsCbs = True
             if not total_ibs and not total_cbs:
-                return False
+                for record in self:
+                    if not record.fiscal_line_ids:
+                        return False
+                    else:
+                        classtrib = False
+                        for line in record.fiscal_line_ids:
+                            if line.tax_classification_id:
+                                classtrib = True
+                                if line.tax_classification_id.rate_type == "3":
+                                    groupIbsCbs = False
+                        if not classtrib:
+                            return False
 
             # Build gIBSUF
             gibsuf = TibscbsmonoTot.GIbs.GIbsuf(
@@ -858,11 +871,16 @@ class NFe(spec_models.StackedModel):
             )
 
             # Build IBSCBSTot
-            ibscbs_tot = TibscbsmonoTot(
-                vBCIBSCBS=f"{self.nfe40_vBCIBSCBS:.2f}",
-                gIBS=gibs,
-                gCBS=gcbs,
-            )
+            if groupIbsCbs:
+                ibscbs_tot = TibscbsmonoTot(
+                    vBCIBSCBS=f"{self.nfe40_vBCIBSCBS:.2f}",
+                    gIBS=gibs,
+                    gCBS=gcbs,
+                )
+            else:
+                ibscbs_tot = TibscbsmonoTot(
+                    vBCIBSCBS=f"{0.0:.2f}",
+                )
 
             return ibscbs_tot
 
@@ -918,6 +936,19 @@ class NFe(spec_models.StackedModel):
             if self.company_inscr_est_st:
                 res.IEST = self.company_inscr_est_st
             return res
+        if (
+            field_name == "nfe40_dest"
+            and ((self.has_vat_specification) or (self.partner_id.vat))
+            and self.document_type == MODELO_FISCAL_NFCE
+        ):
+            return self._setup_minimal_dest(field_name, xsd_required, class_obj)
+        if (
+            field_name == "nfe40_dest"
+            and (not self.has_vat_specification)
+            and (not self.partner_id.vat)
+            and self.document_type == MODELO_FISCAL_NFCE
+        ):
+            return self._setup_no_dest(field_name, xsd_required, class_obj)
 
         return super()._export_many2one(field_name, xsd_required, class_obj)
 
