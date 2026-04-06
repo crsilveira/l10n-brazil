@@ -376,7 +376,7 @@ odoo.define("l10n_br_pos_nfce.nfe-xml", function (require) {
                 cProd: line.product.default_code,
                 cEAN: "SEM GTIN",
                 xProd: line.product.display_name,
-                NCM: taxes.ncm_code,
+                NCM: line.product_id.ncm_id.code,
                 CFOP: taxes.cfop_code,
                 uCom: this.getUOMCode(product).code,
                 qCom: line.quantity.toFixed(4),
@@ -624,13 +624,14 @@ odoo.define("l10n_br_pos_nfce.nfe-xml", function (require) {
                 tPag: paymentLineMode.fiscal_payment_mode,
                 vPag: paymentline.amount.toFixed(2),
                 card: {
-                    tpIntegra: "1",
-                    CNPJ: paymentline.terminal_transaction_network_cnpj.replace(
-                        /([^\w ]|_)/g,
-                        ""
-                    ),
-                    tBand: paymentline.terminal_transaction_administrator,
-                    cAut: paymentline.transaction_id,
+                    // tpIntegra: "1",
+                    // CNPJ: paymentline.terminal_transaction_network_cnpj.replace(
+                    //     /([^\w ]|_)/g,
+                    //     ""
+                    // ),
+                    // tBand: paymentline.terminal_transaction_administrator,
+                    // cAut: paymentline.transaction_id,
+                    tpIntegra: "2",
                 },
             };
         }
