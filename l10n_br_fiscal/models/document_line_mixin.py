@@ -369,7 +369,7 @@ class FiscalDocumentLineMixin(models.AbstractModel):
         string="Tax Benefit",
         domain=[
             ("is_benefit", "=", True),
-            ("tax_domain", "=", TAX_DOMAIN_ICMS),
+            ("tax_domain", "in", (TAX_DOMAIN_ICMS, TAX_DOMAIN_ICMS_SN)),
         ],
     )
 
