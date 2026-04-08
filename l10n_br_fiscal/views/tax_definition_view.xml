@@ -100,7 +100,7 @@
                         />
             <field
                             name="is_benefit"
-                            attrs="{'invisible': [('tax_domain', '!=', 'icms')]}"
+                            attrs="{'invisible': [('tax_domain', 'not in', ('icms', 'icmssn'))]}"
                         />
           </group>
           <group
