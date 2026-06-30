@@ -10,6 +10,7 @@ import threading
 from datetime import datetime
 
 from erpbrasil.base.fiscal import cnpj_cpf
+from erpbrasil.base.misc import punctuation_rm
 from erpbrasil.base.fiscal.edoc import ChaveEdoc
 from erpbrasil.transmissao import TransmissaoSOAP
 from lxml import etree
@@ -953,6 +954,34 @@ class NFe(spec_models.StackedModel):
             return self._setup_no_dest(field_name, xsd_required, class_obj)
 
         return super()._export_many2one(field_name, xsd_required, class_obj)
+
+    def _setup_minimal_dest(self, field_name, xsd_required, class_obj):
+        """
+        Minimal setup dest  for cases with VAT specification
+        commonly known as 'CPF na nota'.
+        """
+        res = super()._export_many2one(field_name, xsd_required, class_obj)
+        if (self.partner_cnpj_cpf and len(self.partner_cnpj_cpf) <= 11) or (self.partner_id.vat and len(punctuation_rm(self.partner_id.vat)) <= 11):
+            # CPF
+            res.CPF = self.partner_cnpj_cpf or punctuation_rm(self.partner_id.vat)
+            res.CNPJ = None
+        else:
+            # CNPJ
+            res.CNPJ = self.partner_cnpj_cpf
+            res.CPF = None
+        # Remove every non-used attribute for VAT in NF case
+        res.enderDest = None
+        res.CEP = None
+        res.xNome = None
+        return res
+
+    def _setup_no_dest(self, field_name, xsd_required, class_obj):
+        """
+        Setup dest for cases without VAT specification and anonymous consumer.
+        """
+        res = super()._export_many2one(field_name, xsd_required, class_obj)
+        res = None
+        return res
 
     def _export_one2many(self, field_name, class_obj=None):
         res = super()._export_one2many(field_name, class_obj)
