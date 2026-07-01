@@ -10,7 +10,6 @@ import threading
 from datetime import datetime
 
 from erpbrasil.base.fiscal import cnpj_cpf
-from erpbrasil.base.misc import punctuation_rm
 from erpbrasil.base.fiscal.edoc import ChaveEdoc
 from erpbrasil.transmissao import TransmissaoSOAP
 from lxml import etree
@@ -683,6 +682,11 @@ class NFe(spec_models.StackedModel):
             # In a complete implementation, these should be calculated separately
             total_ibs_uf = total_ibs_value  # Simplified
             total_ibs_mun = 0.0  # Simplified
+
+            # se diferimento estes valores sao zerados
+            # total_cbs_value = 0.0
+            # total_ibs_uf = 0.0
+            # total_ibs_value = 0.0
 
             record.nfe40_vBCIBSCBS = total_ibs_base
             record.nfe40_vIBS = total_ibs_value
