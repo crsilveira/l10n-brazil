@@ -5,7 +5,7 @@
 import sys
 from enum import Enum
 
-from nfelib.nfe.bindings.v4_0.dfe_tipos_basicos_v1_00 import Tcibs, TtribNfe, Tred
+from nfelib.nfe.bindings.v4_0.dfe_tipos_basicos_v1_00 import Tcibs, TtribNfe, Tred, Tdif
 
 from odoo import api, fields
 
@@ -261,13 +261,24 @@ class NFeLine(spec_models.StackedModel):
                 p_cbs = p_cbs - (p_cbs * self.cbs_reduction / 100)
             v_cbs = self.cbs_value or (v_bc * p_cbs / 100) if p_cbs else 0.0
 
+            # se diferimento estes valores sao zerados
+            # v_ibs = 0.0
+            # v_ibs_uf = 0.0
+            # v_cbs = 0.0
+
             # Build gIBSUF
             gRed = Tred(
                 pRedAliq=f"{self.ibs_reduction:.4f}",
                 pAliqEfet=f"{p_ibs_uf:.4f}"
             ) if self.ibs_reduction else None
+            # gDif = Tdif(
+            #     pDif=f"100.0000",
+            #     vDif=f"13.44"
+            # )
+            gDif = None
             gibsuf = Tcibs.GIbsuf(
                 pIBSUF=f"{self.ibs_percent or 0.0:.4f}",
+                gDif=gDif,
                 gRed=gRed,
                 vIBSUF=f"{v_ibs_uf:.2f}",
             )
@@ -277,8 +288,14 @@ class NFeLine(spec_models.StackedModel):
                 pRedAliq=f"{self.ibs_reduction:.4f}",
                 pAliqEfet=f"{p_ibs_mun:.4f}"
             ) if self.ibs_reduction else None
+            # gDif = Tdif(
+            #     pDif=f"100.0000",
+            #     vDif=f"0.00"
+            # )
+            gDif = None
             gibsmun = Tcibs.GIbsmun(
                 pIBSMun=f"{0.0:.4f}",
+                gDif=gDif,
                 gRed=gRed,
                 vIBSMun=f"{v_ibs_mun:.2f}",
             )
@@ -288,8 +305,14 @@ class NFeLine(spec_models.StackedModel):
                 pRedAliq=f"{self.cbs_reduction:.4f}",
                 pAliqEfet=f"{p_cbs:.4f}"
             ) if self.cbs_reduction else None
+            # gDif = Tdif(
+            #     pDif=f"100.0000",
+            #     vDif=f"120.96"
+            # )
+            gDif = None
             gcbs = Tcibs.GCbs(
                 pCBS=f"{self.cbs_percent or 0.0:.4f}",
+                gDif=gDif,
                 gRed=gRed,
                 vCBS=f"{v_cbs:.2f}",
             )
@@ -368,6 +391,10 @@ class NFeLine(spec_models.StackedModel):
             v_cbs = self.cbs_value or (v_bc * p_cbs / 100) if p_cbs else 0.0
 
             # Build gIBSUF
+            # se diferimento estes valores sao zerados
+            # v_ibs_uf = 0.0
+            # v_ibs = 0.0
+            # v_cbs = 0.0
             gibsuf = Tcibs.GIbsuf(
                 pIBSUF=f"{p_ibs_uf:.4f}",
                 vIBSUF=f"{v_ibs_uf:.2f}",
@@ -591,6 +618,10 @@ class NFeLine(spec_models.StackedModel):
             v_cbs = self.cbs_value or (v_bc * p_cbs / 100) if p_cbs else 0.0
 
             # Build gIBSUF
+            # se diferimento estes valores sao zerados
+            # v_ibs_uf = 0.0
+            # v_cbs = 0.0
+            # v_ibs = 0.0
             gibsuf = Tcibs.GIbsuf(
                 pIBSUF=f"{p_ibs_uf:.4f}",
                 vIBSUF=f"{v_ibs_uf:.2f}",
