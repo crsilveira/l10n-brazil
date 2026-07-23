@@ -5,7 +5,7 @@
 import sys
 from enum import Enum
 
-from nfelib.nfe.bindings.v4_0.dfe_tipos_basicos_v1_00 import Tcibs, TtribNfe
+from nfelib.nfe.bindings.v4_0.dfe_tipos_basicos_v1_00 import Tcibs, TtribNfe, Tred
 
 from odoo import api, fields
 
