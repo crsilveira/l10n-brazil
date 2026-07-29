@@ -14,6 +14,7 @@ from erpbrasil.base.fiscal.edoc import ChaveEdoc
 from erpbrasil.transmissao import TransmissaoSOAP
 from lxml import etree
 from nfelib.nfe.bindings.v4_0.dfe_tipos_basicos_v1_00 import TibscbsmonoTot
+from nfelib.nfe.bindings.v4_0.dfe_tipos_basicos_v1_00 import TibscbsmonoTot
 from nfelib.nfe.bindings.v4_0.leiaute_nfe_v4_00 import TnfeProc
 from nfelib.nfe.bindings.v4_0.nfe_v4_00 import Nfe
 from nfelib.nfe.ws.edoc_legacy import NFCeAdapter as edoc_nfce
@@ -642,6 +643,7 @@ class NFe(spec_models.StackedModel):
         compute="_compute_nfe40_IBSCBSTot_fields",
     )
 
+    #  "fiscal_line_ids.tax_classification_id",
     @api.depends(
         "fiscal_line_ids.ibs_base",
         "fiscal_line_ids.cbs_base",
@@ -822,8 +824,8 @@ class NFe(spec_models.StackedModel):
             total_ibs = sum(self.fiscal_line_ids.mapped("ibs_value"))
             total_cbs = sum(self.fiscal_line_ids.mapped("cbs_value"))
 
-            if not total_ibs and not total_cbs:
-                return False
+            # if not total_ibs and not total_cbs:
+                # return False
 
             # Build gIBSUF
             gibsuf = TibscbsmonoTot.GIbs.GIbsuf(

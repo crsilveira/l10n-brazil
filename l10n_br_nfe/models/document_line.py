@@ -5,7 +5,7 @@
 import sys
 from enum import Enum
 
-from nfelib.nfe.bindings.v4_0.dfe_tipos_basicos_v1_00 import Tcibs, TtribNfe
+from nfelib.nfe.bindings.v4_0.dfe_tipos_basicos_v1_00 import Tcibs, TtribNfe, Tred
 
 from odoo import api, fields
 
@@ -214,7 +214,7 @@ class NFeLine(spec_models.StackedModel):
     def _export_field(self, xsd_field, class_obj, member_spec, export_value=None):
         """Override to handle IBSCBS field export"""
         if xsd_field == "nfe40_IBSCBS":
-            if not self.ibs_value and not self.cbs_value:
+            if not self.tax_classification_id:
                 return False
 
             # Get tax classification code
@@ -235,6 +235,9 @@ class NFeLine(spec_models.StackedModel):
             # IBS UF values - when there's only one IBS, populate IBSUF directly
             # Use IBS percent directly for pIBSUF
             p_ibs_uf = self.ibs_percent or 0.0
+            if self.ibs_reduction and p_ibs_uf > 0:
+                p_ibs_uf = p_ibs_uf - (p_ibs_uf * self.ibs_reduction / 100)
+
             # Use IBS value directly for vIBSUF, or calculate from base and percent
             if self.ibs_value:
                 v_ibs_uf = self.ibs_value
@@ -252,23 +255,40 @@ class NFeLine(spec_models.StackedModel):
 
             # CBS values
             p_cbs = self.cbs_percent or 0.0
+            if self.cbs_reduction and p_cbs > 0:
+                p_cbs = p_cbs - (p_cbs * self.cbs_reduction / 100)
             v_cbs = self.cbs_value or (v_bc * p_cbs / 100) if p_cbs else 0.0
 
             # Build gIBSUF
+            gRed = Tred(
+                pRedAliq=f"{self.ibs_reduction:.4f}",
+                pAliqEfet=f"{p_ibs_uf:.4f}"
+            ) if self.ibs_reduction else None
             gibsuf = Tcibs.GIbsuf(
-                pIBSUF=f"{p_ibs_uf:.4f}",
+                pIBSUF=f"{self.ibs_percent or 0.0:.4f}",
+                gRed=gRed,
                 vIBSUF=f"{v_ibs_uf:.2f}",
             )
 
             # Build gIBSMun
+            gRed = Tred(
+                pRedAliq=f"{self.ibs_reduction:.4f}",
+                pAliqEfet=f"{p_ibs_mun:.4f}"
+            ) if self.ibs_reduction else None
             gibsmun = Tcibs.GIbsmun(
-                pIBSMun=f"{p_ibs_mun:.4f}",
+                pIBSMun=f"{0.0:.4f}",
+                gRed=gRed,
                 vIBSMun=f"{v_ibs_mun:.2f}",
             )
 
             # Build gCBS
+            gRed = Tred(
+                pRedAliq=f"{self.cbs_reduction:.4f}",
+                pAliqEfet=f"{p_cbs:.4f}"
+            ) if self.cbs_reduction else None
             gcbs = Tcibs.GCbs(
-                pCBS=f"{p_cbs:.4f}",
+                pCBS=f"{self.cbs_percent or 0.0:.4f}",
+                gRed=gRed,
                 vCBS=f"{v_cbs:.2f}",
             )
 
@@ -295,7 +315,7 @@ class NFeLine(spec_models.StackedModel):
     def _export_many2one(self, field_name, xsd_required, class_obj=None):
         """Override to handle IBSCBS Many2one field export"""
         if field_name == "nfe40_IBSCBS":
-            if not self.ibs_value and not self.cbs_value:
+            if not self.tax_classification_id:
                 return False
 
             # Get tax classification code
@@ -316,6 +336,8 @@ class NFeLine(spec_models.StackedModel):
             # IBS UF values - when there's only one IBS, populate IBSUF directly
             # Use IBS percent directly for pIBSUF
             p_ibs_uf = self.ibs_percent or 0.0
+            if self.ibs_reduction and p_ibs_uf > 0:
+                p_ibs_uf = p_ibs_uf - (p_ibs_uf * self.ibs_reduction / 100)
             # Use IBS value directly for vIBSUF, or calculate from base and percent
             if self.ibs_value:
                 v_ibs_uf = self.ibs_value
@@ -333,6 +355,8 @@ class NFeLine(spec_models.StackedModel):
 
             # CBS values
             p_cbs = self.cbs_percent or 0.0
+            if self.cbs_reduction and p_cbs > 0:
+                p_cbs = p_cbs - (p_cbs * self.cbs_reduction / 100)
             v_cbs = self.cbs_value or (v_bc * p_cbs / 100) if p_cbs else 0.0
 
             # Build gIBSUF
@@ -515,7 +539,7 @@ class NFeLine(spec_models.StackedModel):
             xsd_fields.remove("nfe40_IPI")
 
         # Export IBSCBS if there are values
-        if self.ibs_value or self.cbs_value:
+        if self.tax_classification_id:
             # Get tax classification code
             c_class_trib = "000001"
             if self.tax_classification_id and self.tax_classification_id.code:
@@ -534,6 +558,9 @@ class NFeLine(spec_models.StackedModel):
             # IBS UF values - when there's only one IBS, populate IBSUF directly
             # Use IBS percent directly for pIBSUF
             p_ibs_uf = self.ibs_percent or 0.0
+            if self.ibs_reduction and p_ibs_uf > 0:
+                p_ibs_uf = p_ibs_uf - (p_ibs_uf * self.ibs_reduction / 100)
+                # self.ibs_value = v_bc * (p_ibs_uf / 100)
             # Use IBS value directly for vIBSUF, or calculate from base and percent
             if self.ibs_value:
                 v_ibs_uf = self.ibs_value
@@ -551,6 +578,8 @@ class NFeLine(spec_models.StackedModel):
 
             # CBS values
             p_cbs = self.cbs_percent or 0.0
+            if self.cbs_reduction and p_cbs > 0:
+                p_cbs = p_cbs - (p_cbs * self.cbs_reduction / 100)
             v_cbs = self.cbs_value or (v_bc * p_cbs / 100) if p_cbs else 0.0
 
             # Build gIBSUF
