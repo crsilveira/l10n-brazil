@@ -226,7 +226,10 @@ class Tax(models.Model):
         )
 
         # Compute Tax Base Reduction
-        base_reduction = base_amount * abs(tax.percent_reduction / 100)
+        base_reduction = 0.00
+        if tax.tax_domain not in ["ibs", "cbs"]:
+            base_reduction = base_amount * abs(tax.percent_reduction / 100)
+        # base_reduction = base_amount * abs(tax.percent_reduction / 100)
 
         # Compute Tax Base Amount
         if compute_reduction:
@@ -290,9 +293,16 @@ class Tax(models.Model):
         base_amount = tax_dict.get("base", 0.00)
 
         if tax_dict["base_type"] == "percent":
-            tax_dict["tax_value"] = currency.round(
-                base_amount * (tax_dict["percent_amount"] / 100)
-            )
+            if tax.tax_domain not in ["ibs", "cbs"]:
+                tax_dict["tax_value"] = currency.round(
+                    base_amount * (tax_dict["percent_amount"] / 100)
+                )
+            else:
+                base_reduction = base_amount * abs(tax.percent_reduction / 100)
+                base_amount = base_amount - base_reduction
+                tax_dict["tax_value"] = currency.round(
+                    base_amount * (tax_dict["percent_amount"] / 100)
+                )
 
         if tax_dict["base_type"] in ("quantity", "fixed"):
             tax_dict["tax_value"] = currency.round(
@@ -632,6 +642,7 @@ class Tax(models.Model):
             + tax_dict_pis.get("tax_value", 0.00)
             + tax_dict_cofins.get("tax_value", 0.00)
         )
+
         return self._compute_tax(tax, taxes_dict, **kwargs)
 
     @api.model
@@ -652,7 +663,7 @@ class Tax(models.Model):
 
     @api.model
     def _compute_is(self, tax, taxes_dict, **kwargs):
-        """The IS tax (Selective Tax) must have the
+        """CThe ISS tax (Selective Tax) must have the
         following taxes removed from its calculation base:
         ICMS, PIS, and COFINS."""
         tax_dict = taxes_dict.get(tax.tax_domain)
