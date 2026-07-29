@@ -40,6 +40,7 @@ class TaxDefinition(models.Model):
 
     code = fields.Char(
         size=10,
+        size=10,
         states={"draft": [("readonly", False)]},
     )
 
@@ -605,7 +606,7 @@ class TaxDefinition(models.Model):
     def _check_tax_benefit_code(self):
         for record in self:
             if record.is_benefit:
-                if record.code and record.code != "SEM CBENEF":
+                if record.code and record.code != "SEM CBENEF" and record.code != "SEM CBENEF":
                     if len(record.code) != 8:
                         raise ValidationError(
                             _("Tax benefit code must be 8 characters!")
