@@ -40,7 +40,6 @@ class TaxDefinition(models.Model):
 
     code = fields.Char(
         size=10,
-        size=10,
         states={"draft": [("readonly", False)]},
     )
 
