@@ -642,7 +642,6 @@ class Tax(models.Model):
             + tax_dict_pis.get("tax_value", 0.00)
             + tax_dict_cofins.get("tax_value", 0.00)
         )
-
         return self._compute_tax(tax, taxes_dict, **kwargs)
 
     @api.model
@@ -663,7 +662,7 @@ class Tax(models.Model):
 
     @api.model
     def _compute_is(self, tax, taxes_dict, **kwargs):
-        """CThe ISS tax (Selective Tax) must have the
+        """The IS tax (Selective Tax) must have the
         following taxes removed from its calculation base:
         ICMS, PIS, and COFINS."""
         tax_dict = taxes_dict.get(tax.tax_domain)

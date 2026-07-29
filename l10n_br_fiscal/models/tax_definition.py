@@ -39,7 +39,7 @@ class TaxDefinition(models.Model):
     display_name = fields.Char(compute="_compute_display_name", store=True)
 
     code = fields.Char(
-        size=8,
+        size=10,
         states={"draft": [("readonly", False)]},
     )
 
@@ -214,6 +214,14 @@ class TaxDefinition(models.Model):
         column1="tax_definition_id",
         column2="city_taxation_code_id",
         string="City Taxation Codes",
+    )
+
+    national_taxation_code_ids = fields.Many2many(
+        comodel_name="l10n_br_fiscal.national.taxation.code",
+        relation="tax_definition_national_taxation_code_rel",
+        column1="tax_definition_id",
+        column2="national_taxation_code_id",
+        string="National Taxation Codes",
     )
 
     service_type_ids = fields.Many2many(
@@ -431,6 +439,7 @@ class TaxDefinition(models.Model):
         nbs=None,
         cest=None,
         city_taxation_code=None,
+        national_taxation_code=None,
         service_type=None,
     ):
         if not ncm:
@@ -460,6 +469,9 @@ class TaxDefinition(models.Model):
             "|",
             ("city_taxation_code_ids", "=", False),
             ("city_taxation_code_ids", "=", city_taxation_code.id),
+            "|",
+            ("national_taxation_code_ids", "=", False),
+            ("national_taxation_code_ids", "=", national_taxation_code.id),
             "|",
             ("service_type_ids", "=", False),
             ("service_type_ids", "=", service_type.id),
@@ -593,7 +605,7 @@ class TaxDefinition(models.Model):
     def _check_tax_benefit_code(self):
         for record in self:
             if record.is_benefit:
-                if record.code:
+                if record.code and record.code != "SEM CBENEF":
                     if len(record.code) != 8:
                         raise ValidationError(
                             _("Tax benefit code must be 8 characters!")
@@ -604,10 +616,10 @@ class TaxDefinition(models.Model):
                             _("Tax benefit code must be start with state code!")
                         )
 
-                    if record.code[3:4] != record.benefit_type:
-                        raise ValidationError(
-                            _(
-                                "The tax benefit code must contain "
-                                "the type of benefit!"
-                            )
-                        )
+                    # if record.code[3:4] != record.benefit_type and record.code[3:4] != "9":
+                    #     raise ValidationError(
+                    #         _(
+                    #             "The tax benefit code must contain "
+                    #             "the type of benefit!"
+                    #         )
+                    #     )

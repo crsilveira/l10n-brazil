@@ -642,7 +642,6 @@ class NFe(spec_models.StackedModel):
         compute="_compute_nfe40_IBSCBSTot_fields",
     )
 
-    #  "fiscal_line_ids.tax_classification_id",
     @api.depends(
         "fiscal_line_ids.ibs_base",
         "fiscal_line_ids.cbs_base",
@@ -683,6 +682,11 @@ class NFe(spec_models.StackedModel):
             # In a complete implementation, these should be calculated separately
             total_ibs_uf = total_ibs_value  # Simplified
             total_ibs_mun = 0.0  # Simplified
+
+            # se diferimento estes valores sao zerados
+            # total_cbs_value = 0.0
+            # total_ibs_uf = 0.0
+            # total_ibs_value = 0.0
 
             record.nfe40_vBCIBSCBS = total_ibs_base
             record.nfe40_vIBS = total_ibs_value
@@ -952,6 +956,34 @@ class NFe(spec_models.StackedModel):
             return self._setup_no_dest(field_name, xsd_required, class_obj)
 
         return super()._export_many2one(field_name, xsd_required, class_obj)
+
+    def _setup_minimal_dest(self, field_name, xsd_required, class_obj):
+        """
+        Minimal setup dest  for cases with VAT specification
+        commonly known as 'CPF na nota'.
+        """
+        res = super()._export_many2one(field_name, xsd_required, class_obj)
+        if (self.partner_cnpj_cpf and len(self.partner_cnpj_cpf) <= 11) or (self.partner_id.vat and len(punctuation_rm(self.partner_id.vat)) <= 11):
+            # CPF
+            res.CPF = self.partner_cnpj_cpf or punctuation_rm(self.partner_id.vat)
+            res.CNPJ = None
+        else:
+            # CNPJ
+            res.CNPJ = self.partner_cnpj_cpf
+            res.CPF = None
+        # Remove every non-used attribute for VAT in NF case
+        res.enderDest = None
+        res.CEP = None
+        res.xNome = None
+        return res
+
+    def _setup_no_dest(self, field_name, xsd_required, class_obj):
+        """
+        Setup dest for cases without VAT specification and anonymous consumer.
+        """
+        res = super()._export_many2one(field_name, xsd_required, class_obj)
+        res = None
+        return res
 
     def _export_one2many(self, field_name, class_obj=None):
         res = super()._export_one2many(field_name, class_obj)

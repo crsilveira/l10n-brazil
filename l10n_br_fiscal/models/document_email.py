@@ -63,7 +63,13 @@ class DocumentEmail(models.Model):
             if not document_type:
                 document_type = "Others Document Types"
             if record.state_edoc and record.company_id:
-                record.name = document_type + " - " + record.state_edoc + " - " + record.company_id.name
+                record.name = (
+                    document_type
+                    + " - "
+                    + record.state_edoc
+                    + " - "
+                    + record.company_id.name
+                )
 
     _sql_constraints = [
         (
