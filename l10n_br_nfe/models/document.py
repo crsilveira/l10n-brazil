@@ -820,6 +820,9 @@ class NFe(spec_models.StackedModel):
             )
 
         if xsd_field == "nfe40_IBSCBSTot":
+            class_fiscal = self.fiscal_line_ids.mapped("tax_classification_id")
+            if not class_fiscal:
+                return super()._export_field(xsd_field, class_obj, member_spec, export_value)
             total_ibs = sum(self.fiscal_line_ids.mapped("ibs_value"))
             total_cbs = sum(self.fiscal_line_ids.mapped("cbs_value"))
             groupIbsCbs = True
@@ -935,6 +938,19 @@ class NFe(spec_models.StackedModel):
             if self.company_inscr_est_st:
                 res.IEST = self.company_inscr_est_st
             return res
+        if (
+            field_name == "nfe40_dest"
+            and ((self.has_vat_specification) or (self.partner_id.vat))
+            and self.document_type == MODELO_FISCAL_NFCE
+        ):
+            return self._setup_minimal_dest(field_name, xsd_required, class_obj)
+        if (
+            field_name == "nfe40_dest"
+            and (not self.has_vat_specification)
+            and (not self.partner_id.vat)
+            and self.document_type == MODELO_FISCAL_NFCE
+        ):
+            return self._setup_no_dest(field_name, xsd_required, class_obj)
 
         return super()._export_many2one(field_name, xsd_required, class_obj)
 

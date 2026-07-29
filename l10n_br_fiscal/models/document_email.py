@@ -56,7 +56,7 @@ class DocumentEmail(models.Model):
         "this document state change.",
     )
 
-    @api.depends("document_type_id", "state_edoc", "company_id")
+    @api.depends("document_type_id", "state_edoc", "company_id", "company_id")
     def _compute_name(self):
         for record in self:
             document_type = record.document_type_id.name

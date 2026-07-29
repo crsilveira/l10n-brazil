@@ -548,10 +548,10 @@ odoo.define("l10n_br_pos.models", function (require) {
                 json.icms_percent = product_fiscal_map.icms_percent;
                 json.icmssn_percent = product_fiscal_map.icmssn_percent;
                 json.ncm =
-                    product_fiscal_map.ncm_code === "00000000"
+                    product.ncm_id.code === "00000000"
                         ? "99999999"
-                        : product_fiscal_map.ncm_code;
-                json.ncm_code_exception = product_fiscal_map.ncm_code_exception;
+                        : product.ncm_id.code;
+                json.ncm_code_exception = product.ncm_id.exception;
                 json.pis_base = product_fiscal_map.pis_base;
                 json.pis_cst_code = product_fiscal_map.pis_cst_code;
                 json.pis_percent = product_fiscal_map.pis_percent;

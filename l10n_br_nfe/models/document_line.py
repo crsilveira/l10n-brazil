@@ -132,7 +132,8 @@ class NFeLine(spec_models.StackedModel):
 
     # nfe40_cProd = fields.Char(related="product_id.default_code")
 
-    nfe40_cEAN = fields.Char(related="product_id.barcode")
+    # nfe40_cEAN = fields.Char(related="product_id.barcode")
+    nfe40_cEAN = fields.Char(default="SEM GTIN")
 
     # nfe40_xProd = fields.Char(related="name") TODO
 
@@ -165,7 +166,8 @@ class NFeLine(spec_models.StackedModel):
 
     nfe40_vProd = fields.Monetary(related="price_gross")
 
-    nfe40_cEANTrib = fields.Char(related="product_id.barcode")
+    # nfe40_cEANTrib = fields.Char(related="product_id.barcode")
+    nfe40_cEANTrib = fields.Char(default="SEM GTIN")
 
     nfe40_uTrib = fields.Char(related="uot_id.code")
 

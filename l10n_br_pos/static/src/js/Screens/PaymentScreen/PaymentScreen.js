@@ -31,7 +31,7 @@ odoo.define("l10n_br_pos.PaymentScreen", function (require) {
                     }
 
                     result = util.validate_cnpj_cpf(cnpj_cpf);
-                    if (!result) {
+                    if (!result && client.cnpj_cpf) {
                         order.set_client(null);
                     }
                 }
@@ -43,8 +43,9 @@ odoo.define("l10n_br_pos.PaymentScreen", function (require) {
                 var result = super._isOrderValid(isForceValidate);
                 if (this.env.pos.config.simplified_document_type) {
                     var order = this.env.pos.get_order();
+                    const client = order.get_client();
                     const valid_cpf_cnpj = this.check_valid_cpf_cnpj(order);
-                    if (valid_cpf_cnpj) {
+                    if (valid_cpf_cnpj || !client.cnpj_cpf) {
                         result = await order.document_send(this);
                     } else {
                         Gui.showPopup("ErrorPopup", {
