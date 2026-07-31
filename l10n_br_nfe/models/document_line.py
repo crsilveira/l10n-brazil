@@ -594,7 +594,7 @@ class NFeLine(spec_models.StackedModel):
             # Use IBS percent directly for pIBSUF
             p_ibs_uf = self.ibs_percent or 0.0
             if self.ibs_reduction and p_ibs_uf > 0:
-                p_ibs_uf = p_ibs_uf - (p_ibs_uf * self.ibs_reduction / 100)
+                p_ibs_uf = abs(p_ibs_uf - (p_ibs_uf * self.ibs_reduction / 100))
                 # self.ibs_value = v_bc * (p_ibs_uf / 100)
             # Use IBS value directly for vIBSUF, or calculate from base and percent
             if self.ibs_value:
@@ -614,7 +614,7 @@ class NFeLine(spec_models.StackedModel):
             # CBS values
             p_cbs = self.cbs_percent or 0.0
             if self.cbs_reduction and p_cbs > 0:
-                p_cbs = p_cbs - (p_cbs * self.cbs_reduction / 100)
+                p_cbs = abs(p_cbs - (p_cbs * self.cbs_reduction / 100))
             v_cbs = self.cbs_value or (v_bc * p_cbs / 100) if p_cbs else 0.0
 
             # Build gIBSUF
