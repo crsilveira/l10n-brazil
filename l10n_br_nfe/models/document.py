@@ -14,7 +14,6 @@ from erpbrasil.base.fiscal.edoc import ChaveEdoc
 from erpbrasil.transmissao import TransmissaoSOAP
 from lxml import etree
 from nfelib.nfe.bindings.v4_0.dfe_tipos_basicos_v1_00 import TibscbsmonoTot
-from nfelib.nfe.bindings.v4_0.dfe_tipos_basicos_v1_00 import TibscbsmonoTot
 from nfelib.nfe.bindings.v4_0.leiaute_nfe_v4_00 import TnfeProc
 from nfelib.nfe.bindings.v4_0.nfe_v4_00 import Nfe
 from nfelib.nfe.ws.edoc_legacy import NFCeAdapter as edoc_nfce
@@ -643,7 +642,6 @@ class NFe(spec_models.StackedModel):
         compute="_compute_nfe40_IBSCBSTot_fields",
     )
 
-    #  "fiscal_line_ids.tax_classification_id",
     @api.depends(
         "fiscal_line_ids.ibs_base",
         "fiscal_line_ids.cbs_base",
@@ -677,18 +675,17 @@ class NFe(spec_models.StackedModel):
                 or sum(record.fiscal_line_ids.mapped("cbs_base"))
             )
 
-            total_ibs_value = sum(record.fiscal_line_ids.mapped("ibs_value"))
-            total_cbs_value = sum(record.fiscal_line_ids.mapped("cbs_value"))
+            #total_ibs_value = sum(record.fiscal_line_ids.mapped("ibs_value"))
+            total_ibs_value = sum(record.fiscal_line_ids.filtered(lambda l: l.ibs_cst_id.code not in ["510", "515"]).mapped("ibs_value"))
+            total_vdif_ibs_value = sum(record.fiscal_line_ids.filtered(lambda l: l.ibs_cst_id.code in ["510", "515"]).mapped("ibs_value"))
+            #total_cbs_value = sum(record.fiscal_line_ids.mapped("cbs_value"))
+            total_cbs_value = sum(record.fiscal_line_ids.filtered(lambda l: l.cbs_cst_id.code not in ["510", "515"]).mapped("cbs_value"))
+            total_vdif_cbs_value = sum(record.fiscal_line_ids.filtered(lambda l: l.cbs_cst_id.code in ["510", "515"]).mapped("cbs_value"))
 
             # Calculate IBS UF and Municipal (simplified)
             # In a complete implementation, these should be calculated separately
             total_ibs_uf = total_ibs_value  # Simplified
             total_ibs_mun = 0.0  # Simplified
-
-            # se diferimento estes valores sao zerados
-            # total_cbs_value = 0.0
-            # total_ibs_uf = 0.0
-            # total_ibs_value = 0.0
 
             record.nfe40_vBCIBSCBS = total_ibs_base
             record.nfe40_vIBS = total_ibs_value
@@ -697,11 +694,11 @@ class NFe(spec_models.StackedModel):
             record.nfe40_vCBS = total_cbs_value
             record.nfe40_vCredPres = 0.0
             record.nfe40_vCredPresCondSus = 0.0
-            record.nfe40_vDifIBSUF = 0.0
+            record.nfe40_vDifIBSUF = total_vdif_ibs_value
             record.nfe40_vDevTribIBSUF = 0.0
             record.nfe40_vDifIBSMun = 0.0
             record.nfe40_vDevTribIBSMun = 0.0
-            record.nfe40_vDifCBS = 0.0
+            record.nfe40_vDifCBS = total_vdif_cbs_value
             record.nfe40_vDevTribCBS = 0.0
             record.nfe40_vCredPresCBS = 0.0
             record.nfe40_vCredPresCondSusCBS = 0.0
@@ -958,34 +955,6 @@ class NFe(spec_models.StackedModel):
             return self._setup_no_dest(field_name, xsd_required, class_obj)
 
         return super()._export_many2one(field_name, xsd_required, class_obj)
-
-    def _setup_minimal_dest(self, field_name, xsd_required, class_obj):
-        """
-        Minimal setup dest  for cases with VAT specification
-        commonly known as 'CPF na nota'.
-        """
-        res = super()._export_many2one(field_name, xsd_required, class_obj)
-        if (self.partner_cnpj_cpf and len(self.partner_cnpj_cpf) <= 11) or (self.partner_id.vat and len(punctuation_rm(self.partner_id.vat)) <= 11):
-            # CPF
-            res.CPF = self.partner_cnpj_cpf or punctuation_rm(self.partner_id.vat)
-            res.CNPJ = None
-        else:
-            # CNPJ
-            res.CNPJ = self.partner_cnpj_cpf
-            res.CPF = None
-        # Remove every non-used attribute for VAT in NF case
-        res.enderDest = None
-        res.CEP = None
-        res.xNome = None
-        return res
-
-    def _setup_no_dest(self, field_name, xsd_required, class_obj):
-        """
-        Setup dest for cases without VAT specification and anonymous consumer.
-        """
-        res = super()._export_many2one(field_name, xsd_required, class_obj)
-        res = None
-        return res
 
     def _export_one2many(self, field_name, class_obj=None):
         res = super()._export_one2many(field_name, class_obj)

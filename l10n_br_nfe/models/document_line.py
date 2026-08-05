@@ -271,11 +271,15 @@ class NFeLine(spec_models.StackedModel):
                 pRedAliq=f"{self.ibs_reduction:.4f}",
                 pAliqEfet=f"{p_ibs_uf:.4f}"
             ) if self.ibs_reduction else None
-            # gDif = Tdif(
-            #     pDif=f"100.0000",
-            #     vDif=f"13.44"
-            # )
-            gDif = None
+            if self.ibs_cst_id.code in ('510', '515'):
+                gDif = Tdif(
+                    pDif=f"100.0000",
+                    vDif=f"{v_ibs_uf:.2f}"
+                )
+                v_ibs = 0.0
+                v_ibs_uf = 0.0
+            else:
+                gDif = None
             gibsuf = Tcibs.GIbsuf(
                 pIBSUF=f"{self.ibs_percent or 0.0:.4f}",
                 gDif=gDif,
@@ -288,11 +292,14 @@ class NFeLine(spec_models.StackedModel):
                 pRedAliq=f"{self.ibs_reduction:.4f}",
                 pAliqEfet=f"{p_ibs_mun:.4f}"
             ) if self.ibs_reduction else None
-            # gDif = Tdif(
-            #     pDif=f"100.0000",
-            #     vDif=f"0.00"
-            # )
-            gDif = None
+            if self.ibs_cst_id.code in ('510', '515'):
+                gDif = Tdif(
+                    pDif=f"100.0000",
+                    vDif=f"0.00"
+                )
+                v_ibs_mun = 0.0
+            else:
+                gDif = None
             gibsmun = Tcibs.GIbsmun(
                 pIBSMun=f"{0.0:.4f}",
                 gDif=gDif,
@@ -305,11 +312,14 @@ class NFeLine(spec_models.StackedModel):
                 pRedAliq=f"{self.cbs_reduction:.4f}",
                 pAliqEfet=f"{p_cbs:.4f}"
             ) if self.cbs_reduction else None
-            # gDif = Tdif(
-            #     pDif=f"100.0000",
-            #     vDif=f"120.96"
-            # )
-            gDif = None
+            if self.cbs_cst_id.code in ('510', '515'):
+                gDif = Tdif(
+                    pDif=f"100.0000",
+                    vDif=f"{v_cbs:.2f}"
+                )
+                v_cbs = 0.0
+            else:
+                gDif = None
             gcbs = Tcibs.GCbs(
                 pCBS=f"{self.cbs_percent or 0.0:.4f}",
                 gDif=gDif,
